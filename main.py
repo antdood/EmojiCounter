@@ -87,15 +87,15 @@ def isUserTag(text):
 
 @bot.command(aliases = ['emoji'])
 async def emoji_report(msg, *, args):
-	options = {'top' : 5, 'bottom' : 5, 'time' : "all"}
+	arguments = {'top' : 5, 'bottom' : 5, 'time' : "all"}
 
-	def isOption(text):
-		return text in options
+	def isArgument(text):
+		return text in arguments
 
-	def isValidValueforOption(value, option):
-		if(option in ["top", "bottom", "bot"]):
+	def isValidValueforArgument(value, argument):
+		if(argument in ["top", "bottom", "bot"]):
 			return value.isnumeric()
-		elif(option == "time"):
+		elif(argument == "time"):
 			return re.search("^\d+[dwmy]$", text)
 		else:
 			return False
@@ -103,20 +103,20 @@ async def emoji_report(msg, *, args):
 	bits = args.split()
 
 
-	selectedOptions = {}
+	selectedArgumments = {}
 	targets = []
 
 	i = 0
 	while(i < len(bits)):
-		if(isOption(bits[i])):
-			currentOption = bits[i]
+		if(isArgument(bits[i])):
+			currentArguments = bits[i]
 			i += 1
-			if(isValidValueforOption(bits[i], currentOption)):
-				selectedOptions[currentOption] = bits[i]
+			if(isValidValueforArgument(bits[i], currentArguments)):
+				selectedArgumments[currentArguments] = bits[i]
 				i += 1
 				continue
 			else:
-				selectedOptions[currentOption] = options[currentOption]
+				selectedArgumments[currentArguments] = arguments[currentArguments]
 				continue
 		elif(isTarget(bits[i])):
 			targets.append(bits[i])
@@ -125,7 +125,7 @@ async def emoji_report(msg, *, args):
 		i += 1
 
 			
-	print(selectedOptions)
+	print(selectedArgumments)
 	print(targets)
 
 
