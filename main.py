@@ -50,6 +50,12 @@ async def on_raw_reaction_add(payload):
 
 @bot.event
 async def on_message(msg):
+
+
+	# for em in bot.emojis:
+	# 	print(em.guild)
+	# 	print(em.guild_id)
+
 	if(msg.author.bot):
 		return
 
@@ -59,11 +65,79 @@ async def on_message(msg):
 		user = msg.author.id
 		db.add_emoji_usage(msg.guild.id, msg.channel.id, msg.author.id, emojis)
 
+	await bot.process_commands(msg)
 
-# @bot.commands(aliases = ['emoji'])
-# async def emoji_report
+
+def isTarget(text):
+	if(text == "global"):
+		return True
+	if(isChannelTag(text)): #is channel
+		return True
+	if(isUserTag(text)): #is user
+		return True
+	return False
+
+def isChannelTag(text):
+	return re.search("^<#\d+>$", text)
+
+def isUserTag(text):
+	return re.search("^<@!?\d+>$", text)
+
+
+
+@bot.command(aliases = ['emoji'])
+async def emoji_report(msg, *, args):
+	options = {'top' : 5, 'bottom' : 5, 'time' : "all"}
+
+	def isOption(text):
+		return text in options
+
+	def isValidValueforOption(value, option):
+		if(option in ["top", "bottom", "bot"]):
+			return value.isnumeric()
+		elif(option == "time"):
+			return re.search("^\d+[dwmy]$", text)
+		else:
+			return False
+
+	bits = args.split()
+
+
+	selectedOptions = {}
+	targets = []
+
+	i = 0
+	while(i < len(bits)):
+		if(isOption(bits[i])):
+			currentOption = bits[i]
+			i += 1
+			if(isValidValueforOption(bits[i], currentOption)):
+				selectedOptions[currentOption] = bits[i]
+				i += 1
+				continue
+			else:
+				selectedOptions[currentOption] = options[currentOption]
+				continue
+		elif(isTarget(bits[i])):
+			targets.append(bits[i])
+			i += 1
+			continue
+		i += 1
+
+			
+	print(selectedOptions)
+	print(targets)
+
+
+#!update 
+
+
+
+
 
 # default time = all 
+
+# emoji top 5 global bottom time 5d
 
 # !emoji global top  
 # !emoji global top 5
@@ -73,6 +147,7 @@ async def on_message(msg):
 # !emoji #channel top 5
 # !emoji #channel top
 # !emoji #channel
+# !emoji top 5 time 5d global
 # - total emojis used
 # - total unique emojis
 
