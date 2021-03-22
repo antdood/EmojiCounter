@@ -1,7 +1,8 @@
 CREATE TABLE emoji_usages
 (
-	server INT UNSIGNED,
-	user INT UNSIGNED,
+	server BIGINT UNSIGNED,
+	channel BIGINT UNSIGNED,
+	user BIGINT UNSIGNED,
 	emoji VARCHAR(255),
 	time TIMESTAMP
 );
