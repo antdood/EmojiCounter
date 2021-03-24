@@ -68,13 +68,13 @@ async def on_message(msg):
 
 
 def isTarget(text):
-    if(text == "global"):
-        return True
+    if(text == "server"):
+        return "server"
     if(isChannelTag(text)): #is channel
-        return True
+        return "channel"
     if(isUserTag(text)): #is user
-        return True
-    return False
+        return "user"
+    return None
 
 def isChannelTag(text):
     return re.search("^<#\d+>$", text)
@@ -83,14 +83,14 @@ def isUserTag(text):
     return re.search("^<@!?\d+>$", text)
 
 @bot.command(aliases = ['emoji', 'emojiUse', 'e'])
-async def emoji_report(msg, *, args):
+async def emoji_report(msg, *, args = ""):
     arguments = {'top' : 5, 'bottom' : 5, 'time' : "all"}
 
     def isArgument(text):
         return text in arguments
 
     def isValidValueforArgument(value, argument):
-        if(argument in ["top", "bottom", "bot"]):
+        if(argument in ["top", "bottom"]):
             return value.isnumeric()
         elif(argument == "time"):
             return re.search("^\d+[dwmy]$", value)
@@ -102,6 +102,7 @@ async def emoji_report(msg, *, args):
     selectedArguments = {}
     targets = []
 
+    # Really really bad argument parsing going on here. I definitely did not need the time bit to be in the same variable as the top/bottom arguments. Might rewrite
     i = 0
     while(i < len(bits)):
         if(isArgument(bits[i])):
@@ -114,22 +115,33 @@ async def emoji_report(msg, *, args):
             else:
                 selectedArguments[currentArguments] = arguments[currentArguments]
                 continue
-        elif(isTarget(bits[i])):
-            targets.append(bits[i])
+        elif(targetType := isTarget(bits[i])):
+            targetID = bits[i]
+            if(bits[i] == "server"):
+                targetID = msg.guild.id
+            targets.append((targetType, targetID))
             i += 1
             continue
         i += 1
-
-    print(selectedArguments)
-    print(targets)
 
     # Don't like this. There should be a nicer way to handle default values.
     if(not "time" in selectedArguments.keys()):
         selectedArguments["time"] = arguments["time"]
 
+    # More ugly defaults
+    if(not ("top" in selectedArguments or "bottom" in selectedArguments)):
+        selectedArguments["top"] = arguments["top"]
+
+    if(not targets):
+        targets.append(("user",msg.author.mention)) # mention instead of id because it's cleaned in db
+
+    # This bit suffers hard because of my argument parsing
     for target in targets:
         if("top" in selectedArguments):
-            a = db.getTopEmojis(target, selectedArguments["top"], selectedArguments["time"])
+            a = db.getEmojisUses(target, selectedArguments["top"], selectedArguments["time"], "top")
+            print(a)
+        if("bottom" in selectedArguments):
+            a = db.getEmojisUses(target, selectedArguments["bottom"], selectedArguments["time"], "bottom")
             print(a)
 
 @bot.command(aliases = ['updateemojis'])
@@ -140,6 +152,8 @@ async def updateEmojis(msg):
     emojis = [emoji for emoji in bot.emojis if emoji.guild_id == guildID]
 
     db.addEmojisTo(guildID, emojis)
+
+    # should also delete emojis uses for the emojis that dont exist in the server anymore
 
 
 

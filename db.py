@@ -66,21 +66,37 @@ class db:
 
         db.getdb().commit()
 
-    def getTopEmojis(target, number, timeOffsetString, ):
+    def getEmojisUses(target, number, timeOffsetString, orientation):
         c = db.getdb().cursor()
 
-        if(timeOffsetString == "all"):
-            print("wait lol")
-        else:
-            timeOffset = convertToSeconds(timeOffsetString)
-
-            # change to handle channel as well or something
-            clean = re.findall("\d+", target)[0]
-
-            print(time.time())
-            c.execute(f"SELECT emoji, count(emoji) FROM emoji_usages WHERE user = {clean} AND UNIX_TIMESTAMP(time) > {time.time() - timeOffset} GROUP BY emoji ORDER BY count(emoji) DESC LIMIT {number}")
+        c.execute(db.buildEmojiUsesQuery(target, number, timeOffsetString, orientation))
 
         return c.fetchall()
+
+    def buildEmojiUsesQuery(target, number, timeOffsetString, orientation):
+        
+        orderSort = {
+            "top" : "DESC",
+            "bottom" : "ASC"
+        }
+
+        query = ""
+
+        if(target[0] == "server"):
+            query += "SELECT emojiID, count(emoji) FROM emoji_usages RIGHT JOIN emojis ON emoji_usages.emoji = emojis.emojiID WHERE 1=1 "
+        else:
+            query += "SELECT emoji, count(emoji) FROM emoji_usages WHERE 1=1 "
+            clean = re.findall("\d+", target[1])[0] # How is there no easier way to get the first regex match. I must be missing something
+            query += f"AND {target[0]} = {clean} "
+
+        if(timeOffsetString != "all"):
+            timeOffset = convertToSeconds(timeOffsetString)
+            query += f"AND UNIX_TIMESTAMP(time) > {time.time() - timeOffset} "
+
+        query += f"GROUP BY emoji ORDER BY count(emoji) {orderSort[orientation]} LIMIT {number};"
+
+        return query
+
 
 # !emoji @antdood time all 
 # 1. :heart: 63 times
