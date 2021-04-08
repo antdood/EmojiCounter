@@ -54,10 +54,10 @@ class db:
     def getEmojiUsages(target, timeOffsetString, orientation, count, relevantCustomEmojiIDs):
         c = db.getdb().cursor()
 
-        c.execute("CREATE TEMPORARY TABLE allEmojis (emoji VARCHAR(255), count INT UNSIGNED);")
+        c.execute("CREATE TEMPORARY TABLE allEmojis (emoji VARCHAR(255), count INT UNSIGNED, type ENUM('original', 'custom'));")
 
         for emoji in relevantCustomEmojiIDs:
-            c.execute(f"INSERT INTO allEmojis VALUES ({emoji}, 0);")
+            c.execute(f"INSERT INTO allEmojis VALUES ({emoji}, 0, 'custom');")
 
         orderSort = {
             "top" : "DESC",
@@ -72,14 +72,14 @@ class db:
 
         # JFC WTF IS THIS QUERY
         query = f"""
-        SELECT emoji, sum(count) as count FROM (
-            SELECT usedEmojis.emoji, usedEmojis.count FROM (
-                SELECT combined.emoji as emoji, count(combined.emoji) as count FROM (
-                    SELECT emoji FROM emoji_usages WHERE type = "original" AND {target[0]} = {target[1]} AND UNIX_TIMESTAMP(time) > {startTime}
+        SELECT emoji, sum(count) as count, type FROM (
+            SELECT usedEmojis.emoji, usedEmojis.count, usedEmojis.type FROM (
+                SELECT combined.emoji as emoji, count(combined.emoji) as count, combined.type as type FROM (
+                    SELECT emoji, type FROM emoji_usages WHERE type = "original" AND {1 if target[0] == "server" else target[0]} = {1 if target[0] == "server" else discTagToID(target[1])} AND UNIX_TIMESTAMP(time) > {startTime}
 
                     UNION ALL
 
-                    SELECT emoji FROM emoji_usages WHERE type = "custom" AND {target[0]} = {target[1]} AND UNIX_TIMESTAMP(time) > {startTime} AND emoji IN ({",".join(map(str,relevantCustomEmojiIDs))})
+                    SELECT emoji, type FROM emoji_usages WHERE type = "custom" AND {1 if target[0] == "server" else target[0]} = {1 if target[0] == "server" else discTagToID(target[1])} AND UNIX_TIMESTAMP(time) > {startTime} AND emoji IN ({",".join(map(str,relevantCustomEmojiIDs))})
                 ) AS combined
 
                 GROUP BY emoji
@@ -87,11 +87,11 @@ class db:
             
             UNION ALL
 
-            SELECT emoji, count FROM allEmojis
+            SELECT emoji, count, type FROM allEmojis
         ) 
         x GROUP BY emoji ORDER BY count {orderSort[orientation]} LIMIT {count}
         """
-
+        
         c.execute(query)
 
         data = c.fetchall()
@@ -115,3 +115,11 @@ def convertToSeconds(string):
 
     return int(amount) * intervalSeconds[interval]
 
+def discTagToID(tag):
+    # Could user discord's converter here but why? Non critical stuff + would need to await for stuff
+    charsToBeRemoved = ["<", "@", "!", "#", ">"]
+
+    for c in charsToBeRemoved:
+        tag = tag.replace(c, "")
+
+    return tag

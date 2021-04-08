@@ -2,7 +2,7 @@ import discord
 from dotenv import load_dotenv
 import os
 from discord.ext import commands
-import emoji
+from emoji import emojize, demojize
 import re
 from db import db
 from discord.utils import get
@@ -21,7 +21,9 @@ def extractEmojisFrom(message):
     for indexPair in reversed(indicesToRemove):
         message = message[:indexPair[0]] + message[indexPair[1]:]
 
-    message = emoji.demojize(message)
+    message = message.replace(":", "") # To avoid catching unwanted strings that may resemble emojis
+
+    message = demojize(message)
 
     baseEmojis =  re.findall(":\w+:", message)
 
@@ -44,7 +46,7 @@ async def on_raw_reaction_add(payload):
     channel = payload.channel_id
     user = payload.user_id
 
-    em = payload.emoji.id or emoji.demojize(str(payload.emoji))
+    em = payload.emoji.id or demojize(str(payload.emoji))
 
     db.addEmojiUsage(channel, user, [em])
 
@@ -81,14 +83,7 @@ def isTime(text):
     # ugly type mixing
     return (time == "all") or re.search("^\d+[dwmy]$", value)
 
-def discTagToID(tag):
-    # Could user discord's converter here but why? Non critical stuff + would need to await for stuff
-    charsToBeRemoved = ["<", "@", "!", "#", ">"]
 
-    for c in charsToBeRemoved:
-        tag = tag.replace(c, "")
-
-    return tag
 
 @bot.command(aliases = ['emoji', 'emojiUse', 'e'])
 async def emoji_report(msg, *, args = ""):
@@ -99,8 +94,6 @@ async def emoji_report(msg, *, args = ""):
         "target" : isTarget,
         "time" : isTime
     }
-
-    orientationKeys = ["top", "bottom"]
 
     selectedOptions = {
         "time" : "1m",
@@ -117,7 +110,7 @@ async def emoji_report(msg, *, args = ""):
             return
 
         if(not param):
-            await msg.channel.send(f"No parameter was given for the option **{option}**")
+            await msg.channel.send(f"No parameter was given for the option **{option}**.")
             return
 
         validatorData = validOptions[option](param)
@@ -130,20 +123,38 @@ async def emoji_report(msg, *, args = ""):
             if(validatorData == "server"):
                 selectedOptions[option] = ("server", "server")
             else:
-                selectedOptions[option] = (validatorData, discTagToID(param))
+                selectedOptions[option] = (validatorData, param)
 
         else:
             selectedOptions[option] = param
 
+    exclusiveOptions = [{"top", "bottom"}]
+
+    for options in exclusiveOptions:
+        if(len(options.intersection(selectedOptions)) > 1):
+            await msg.channel.send(f"**{options.intersection(selectedOptions)}** are incompatible options.")
+            return
+
+    orientationKeys = ["top", "bottom"]
     emojiData = {}
 
     for key in orientationKeys:
         if(key in selectedOptions):
             emojiData[key] = db.getEmojiUsages(selectedOptions["target"], selectedOptions["time"], key, selectedOptions[key], [emoji.id for emoji in msg.guild.emojis])
 
-    
+            text = f'**{key.capitalize()} {selectedOptions[key]} Emojis for {selectedOptions["target"][1]}**\n'
 
-    
+            for number, emoji in enumerate(emojiData[key]):
+                text += f"{number+1}. "
+
+                if(emoji[2] == 'original'):
+                    text += f"{emojize(emoji[0])}"
+                else:
+                    text += f"{get(msg.guild.emojis, id=int(emoji[0]))}"
+
+                text += f" {emoji[1]} times\n"
+
+            await msg.channel.send(text)
 
 @bot.event
 async def on_command_error(ctx, error):
