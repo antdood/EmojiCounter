@@ -81,7 +81,7 @@ def isUserTag(text):
 
 def isTime(text):
     # ugly type mixing
-    return (time == "all") or re.search("^\d+[dwmy]$", value)
+    return (text == "all") or re.search("^\d+[dwmy]$", text)
 
 
 
